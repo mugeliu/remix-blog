@@ -5,58 +5,62 @@ import { Form, json, useActionData, useNavigation } from "@remix-run/react";
 import { ActionFunctionArgs, redirect } from "@remix-run/node";
 import { prisma } from "~/prisma.server";
 
-export const action = async (c: ActionFunctionArgs) => {
-  const formData = await c.request.formData();
+type FormFields = {
+  slug: string;
+  title: string;
+  content: string;
+};
 
-  const slug = formData.get("slug") as string;
-  const title = formData.get("title") as string;
-  const content = formData.get("content") as string;
+const validateField = (field: keyof FormFields, value: string) => {
+  const messages = {
+    slug: "必须填写 slug",
+    title: "必须填写标题",
+    content: "必须填写内容"
+  };
+  
+  return !value ? messages[field] : "";
+};
 
-  if (!slug) {
+export const action = async ({request}: ActionFunctionArgs) => {
+  const formData = await request.formData();
+  const fields = {
+    slug: formData.get("slug") as string,
+    title: formData.get("title") as string,
+    content: formData.get("content") as string,
+  };
+
+  const errors: Record<keyof FormFields, string> = {
+    slug: validateField("slug", fields.slug),
+    title: validateField("title", fields.title),
+    content: validateField("content", fields.content),
+  };
+
+  if (Object.values(errors).some(error => error)) {
     return json({
       success: false,
-      errors: {
-        slug: "必须填写 slug",
-        title: "",
-        content: "",
-      },
+      errors,
     });
   }
-  if (!title) {
-    return json({
-      success: false,
-      errors: {
-        slug: "",
-        title: "必须填写标题",
-        content: "",
-      },
-    });
-  }
-  if (!content) {
-    return json({
-      success: false,
-      errors: {
-        slug: "",
-        title: "",
-        content: "必须填写内容",
-      },
-    });
-  }
+
+  await new Promise(resolve => setTimeout(resolve, 3000));  // 模拟网络延迟
+
   await prisma.post.create({
     data: {
-      id: slug,
-      title,
-      content,
+      id: fields.slug,
+      title: fields.title,
+      content: fields.content,
     },
   });
 
-  return redirect(`/`);
+  return redirect("/");
 };
+
 
 export default function Page() {
   const actionData = useActionData<typeof action>();
   const errors = actionData?.errors;
   const navigation = useNavigation()
+  const isSubmitting = navigation.state === "submitting"
 
   return (
     <div className="container py-8">
@@ -77,6 +81,7 @@ export default function Page() {
                 name="slug" 
                 placeholder="my-first-post"
                 aria-describedby="slug-error"
+                disabled={isSubmitting}
               />
               {errors?.slug && (
                 <p className="text-sm text-destructive" id="slug-error">
@@ -94,6 +99,7 @@ export default function Page() {
                 name="title"
                 placeholder="输入文章标题"
                 aria-describedby="title-error"
+                disabled={isSubmitting}
               />
               {errors?.title && (
                 <p className="text-sm text-destructive" id="title-error">
@@ -112,6 +118,7 @@ export default function Page() {
                 placeholder="输入文章内容"
                 rows={10}
                 aria-describedby="content-error"
+                disabled={isSubmitting}
               />
               {errors?.content && (
                 <p className="text-sm text-destructive" id="content-error">
@@ -123,10 +130,10 @@ export default function Page() {
           <div className="flex justify-end">
             <Button 
               type="submit" 
-              disabled={navigation.state === "submitting"}
+              disabled={isSubmitting}
               className="w-full"
             >
-              {navigation.state === "submitting" ? "发布中..." : "发布文章"}
+              {isSubmitting ? "发布中..." : "发布文章"}
             </Button>
           </div>
         </div>

@@ -66,5 +66,8 @@ export default {
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),      // 引入 tailwindcss-animate 插件
+    require("@tailwindcss/typography"),  // 引入 @tailwindcss/typography 插件
+		],
 } satisfies Config;
